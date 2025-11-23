@@ -66,6 +66,14 @@ app.post("/admin/login", (req, res) => {
   });
 });
 
+// ============================
+// API: LOGOUT
+// ============================
+app.get("/admin/logout", (req, res) => {
+  req.session.destroy();
+  res.json({ error: false, msg: "Logout berhasil" });
+});
+
 
 
 // ============================

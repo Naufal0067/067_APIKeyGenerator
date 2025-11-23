@@ -74,7 +74,43 @@ app.get("/admin/logout", (req, res) => {
   res.json({ error: false, msg: "Logout berhasil" });
 });
 
+// ============================
+// API: SAVE USER + API KEY (FIXED FOR YOUR TABLE STRUCTURE)
+// ============================
+app.post("/users/create", (req, res) => {
+  const { first_name, last_name, email, apikey } = req.body;
 
+  if (!first_name || !email || !apikey) {
+    return res.json({ error: true, msg: "Data tidak lengkap" });
+  }
+
+  // INSERT API KEY FIRST
+  const sqlKey = `
+    INSERT INTO apikeys (apikey, created_at, expires_at, status)
+    VALUES (?, NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY), 'active')
+  `;
+
+  db.query(sqlKey, [apikey], (err, result) => {
+    if (err) return res.json({ error: true, msg: err.sqlMessage });
+
+    const apiKeyId = result.insertId;
+
+    // INSERT USER USING FOREIGN KEY
+    const sqlUser = `
+      INSERT INTO users (first_name, last_name, email, api_key_id, created_at)
+      VALUES (?, ?, ?, ?, NOW())
+    `;
+
+    db.query(sqlUser, [first_name, last_name, email, apiKeyId], (err2) => {
+      if (err2) return res.json({ error: true, msg: err2.sqlMessage });
+
+      return res.json({
+        error: false,
+        msg: "API Key dan User berhasil disimpan!"
+      });
+    });
+  });
+});
 
 // ============================
 // API: GET ALL API KEYS WITH USER DATA

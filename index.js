@@ -1,0 +1,107 @@
+const express = require("express");
+const mysql = require("mysql2");
+const bcrypt = require("bcryptjs");
+const path = require("path");
+const session = require("express-session");
+const app = express();
+
+// Middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, "public")));
+
+app.use(
+  session({
+    secret: "supersecretkey",
+    resave: false,
+    saveUninitialized: true,
+  })
+);
+
+// ============================
+// DATABASE CONNECTION
+// ============================
+const db = mysql.createConnection({
+  host: "localhost",
+  user: "root",
+  password: "opangs123",
+  database: "kreatifitas_db",
+  port: 3307,
+});
+
+db.connect((err) => {
+  if (err) throw err;
+  console.log("MySQL Connected!");
+});
+
+// ============================
+// MIDDLEWARE LOGIN PROTECT
+// ============================
+function isLoggedIn(req, res, next) {
+  if (!req.session.admin) {
+    return res.status(401).json({ error: true, msg: "Belum login" });
+  }
+  next();
+}
+
+// ============================
+// API: LOGIN ADMIN
+// ============================
+
+
+// ============================
+// API: GET ALL API KEYS WITH USER DATA
+// ============================
+app.get("/apikeys", isLoggedIn, (req, res) => {
+  const sql = `
+    SELECT apikeys.*, users.first_name, users.last_name, users.email
+    FROM apikeys
+    LEFT JOIN users ON apikeys.id = users.api_key_id
+    ORDER BY apikeys.id DESC
+  `;
+
+  db.query(sql, (err, rows) => {
+    if (err) return res.json({ error: true, msg: err.sqlMessage });
+
+    res.json({ error: false, data: rows });
+  });
+});
+
+// ============================
+// API: UPDATE STATUS
+// ============================
+app.post("/apikey/update", isLoggedIn, (req, res) => {
+  const { id, status } = req.body;
+
+  db.query(
+    "UPDATE apikeys SET status = ? WHERE id = ?",
+    [status, id],
+    (err) => {
+      if (err) return res.json({ error: true, msg: err.sqlMessage });
+
+      res.json({ error: false, msg: "Status berhasil diperbarui" });
+    }
+  );
+});
+
+// ============================
+// API: DELETE KEY
+// ============================
+app.post("/apikey/delete", isLoggedIn, (req, res) => {
+  const { id } = req.body;
+
+  db.query("DELETE FROM apikeys WHERE id = ?", [id], (err) => {
+    if (err) return res.json({ error: true, msg: err.sqlMessage });
+
+    res.json({ error: false, msg: "API Key berhasil dihapus" });
+  });
+});
+
+// ============================
+// START SERVER
+// ============================
+app.listen(3000, () => {
+  console.log("\n=====================================");
+  console.log(" Server running at: http://localhost:3000");
+  console.log("=====================================\n");
+});
